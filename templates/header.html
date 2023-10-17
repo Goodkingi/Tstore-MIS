@@ -20,8 +20,7 @@
 <nav class="navbar justify-content-center" style="background-color: #e3f2fd;">
 
 <ul class="nav ">
- {% if not current_user.is_authenticated %}
-     {% if current_user.id == 1 %}
+
   <li class="nav-item">
     <a class="nav-link active" aria-current="page" href="{{ url_for('home') }}">Main Store</a>
   </li>
@@ -31,14 +30,14 @@
     <a class="nav-link " aria-current="page" href="{{ url_for('inventory') }}">Inventory</a>
   </li>
 
+
+
   <li class="nav-item">
     <a class="nav-link" href="{{url_for('staff')}}">Staff</a>
   </li>
     <li class="nav-item">
     <a class="nav-link" href="{{url_for('department')}}">Department</a>
   </li>
-
-        <!--           If user id is 1 then they can see the Edit Post button -->
 
     <li class="nav-item">
     <a class="nav-link" href="{{url_for('store')}}">Store Manager</a>
@@ -52,23 +51,25 @@
     <a class="nav-link " aria-disabled="" href="{{ url_for('main_store') }}">Register store</a>
   </li>
 
- <li class="nav-item">
+<li class="nav-item">
     <a class="nav-link" href="{{url_for('logout')}}">Logout</a>
   </li>
-
-
-
-           {% else: %}
 <li class="nav-item">
     <a class="nav-link" href="{{url_for('about')}}">About</a>
   </li>
-          <li class="nav-item">
+
+ {% if not current_user.is_authenticated %}
+
+     <li class="nav-item">
     <a class="nav-link" href="{{url_for('login')}}">login</a>
   </li>
-          <li class="nav-item">
+       <li class="nav-item">
     <a class="nav-link" href="{{url_for('register')}}">Register</a>
   </li>
-    {% endif %}
+     {% else: %}
+       <li class="nav-item">
+     <a class="nav-link" href="{{url_for('register')}}">Contact Administrator</a>
+       </li>
     {% endif %}
 </ul>
 

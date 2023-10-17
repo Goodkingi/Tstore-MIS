@@ -1,5 +1,6 @@
 from flask import Flask, request, redirect, render_template, url_for, flash
 from flask_login import LoginManager, UserMixin, login_user, logout_user, current_user
+from sqlalchemy.orm import relationship
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask import Flask, render_template, request, url_for, redirect, flash, send_from_directory
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -35,28 +36,40 @@ db = SQLAlchemy(app)
 ##tables in storage
 # 1 Department
 class DepartmentTable(db.Model):
-    departmentID = db.Column(db.Integer, primary_key=True)
+    _tablename_="table_name"
+    id = db.Column(db.Integer, primary_key=True)
     department_name = db.Column(db.String(100), nullable=False)
-    department_address = db.Column(db.String(100), nullable=False)
+    department_address = db.Column(db.String(100), unique=True, nullable=False)
+
+   #relation between store and department
+    store_id = db.Column(db.Integer,db.ForeignKey("store_table.id"))
+    store = relationship("StoreTable",back_populates='department')
+
 
 
 # 2 staff
 class StaffTable(UserMixin, db.Model):
-    id = db.Column(db.Integer, primary_key=True, nullable=False)
+    _tablename_="staff_table"
+    id = db.Column(db.Integer, primary_key=True)
     staff_department = db.Column(db.String(100), nullable=False)
     staff_first_name = db.Column(db.String(100), nullable=False)
     staff_last_name = db.Column(db.String(100), nullable=False)
-    username = db.Column(db.String(100), nullable=False)
+    username = db.Column(db.String(100), unique=True, nullable=False)
     password = db.Column(db.String(250), nullable=False)
+
+    # relationship between users and store
+    store_id = db.Column(db.Integer, db.ForeignKey("store_table.id"))
+    store = relationship("StoreTable", back_populates="staff")
 
 
 # 3 productInventoryTable
 class InventoryTable(db.Model):
-    productID = db.Column(db.Integer, primary_key=True)
+    _tablename_="inventory_table"
+    id = db.Column(db.Integer, primary_key=True)
     product_categorie = db.Column(db.String(100), nullable=False)
     product_name = db.Column(db.String(100), nullable=False)
-    product_barcode = db.Column(db.String(100), nullable=False)
-    product_serial_number = db.Column(db.Integer, nullable=False)
+    product_barcode = db.Column(db.String(100), unique=True, nullable=False)
+    product_serial_number = db.Column(db.Integer, unique=True, nullable=False)
     product_quantity = db.Column(db.Integer, nullable=False)
     received_date = db.Column(db.String(100), nullable=False)
     product_brand = db.Column(db.String(100), nullable=False)
@@ -66,24 +79,39 @@ class InventoryTable(db.Model):
     product_department = db.Column(db.String(100), nullable=False)
     product_address = db.Column(db.String(100), nullable=False)
 
+    #relationship between store and product_inventory
+    store_id =db.Column(db.Integer,db.ForeignKey("store_table.id"))
+    store = relationship("StoreTable",back_populates="inventory")
 
 # class product_categoryTable(db.Model):
 #     product_id = db.Column(db.Integer,nullable=False)
 #     category_id = db.Column(db.Integer,nullable=False)
 
 
+
 class StoreTable(db.Model):
-    store_id = db.Column(db.Integer, primary_key=True, nullable=False)
+    _tablename_="store_table"
+    id = db.Column(db.Integer, primary_key=True, nullable=False)
     store_name = db.Column(db.String(100), nullable=False)
-    store_address = db.Column(db.String(100), nullable=False)
+    store_address = db.Column(db.String(100), unique=True, nullable=False)
+
+    # relationship between user(staff) and store
+    staff= relationship("StaffTable",back_populates="store")
+
+    #relationship between store and inventory_table
+    inventory= relationship("InventoryTable",back_populates="store")
+
+    # relationship between store and department
+    department = relationship("DepartmentTable",back_populates="store")
+
 
 
 # with app.app_content():
 db.create_all()
 
 
-####################################################################authenticaton admin
-@app.route('/user_register', methods=["GET", "POST"])
+####################################################################authenticaton user
+@app.route('/register', methods=["GET", "POST"])
 def register():
     staffs = StaffForm()
     staffs_all_records = StaffTable.query.all()
@@ -98,7 +126,6 @@ def register():
             # Redirect to /login route.
             return redirect(url_for('login'))
 
-
         hash_and_salted_password = generate_password_hash(
             form.password.data,
             method='pbkdf2:sha256',
@@ -112,9 +139,10 @@ def register():
         db.session.commit()
         # This line will authenticate the user with Flask-Login
         login_user(new_user)
-        return redirect(url_for("get_all_posts"))
+        return redirect(url_for("login"))
 
-    return render_template("register.html", form=form, staff_data=staffs_all_records, logged_in=current_user.is_authenticated)
+    return render_template("register.html", form=form, staff_data=staffs_all_records,
+                           logged_in=current_user.is_authenticated)
 
 
 ################################### staff registration ##########################################
@@ -158,6 +186,8 @@ login_manager.init_app(app)
 @login_manager.user_loader
 def load_user(staff_id):
     return StaffTable.query.get(int(staff_id))
+
+
 @app.route('/login', methods=["GET", "POST"])
 def login():
     if request.method == "POST":
@@ -179,6 +209,8 @@ def login():
             return redirect(url_for('home'))
 
     return render_template("login.html")
+
+
 ##########USER LOGIN
 #
 # login_manager = LoginManager()
@@ -213,9 +245,9 @@ def login():
 #             return redirect(url_for('get_all_posts'))
 #
 #     return render_template("login.html", form=form)
-#Everytime you call render_template(), you pass the current_user over to the template.
-#current_user.is_authenticated will be True if they are logged in/authenticated after registering.
-#You can check for this is header.html
+# Everytime you call render_template(), you pass the current_user over to the template.
+# current_user.is_authenticated will be True if they are logged in/authenticated after registering.
+# You can check for this is header.html
 @app.route('/')
 def initial():
     return render_template('login.html')
@@ -229,7 +261,7 @@ def home():
     all_records = InventoryTable.query.all()  # reading all data in table
     all_data = db.session.query(DepartmentTable).all()  # reading all data using sessions
     return render_template('index.html', department=all_data, inventory=all_records,
-                           logged_in=current_user.is_authenticated,current_user=current_user)
+                           logged_in=current_user.is_authenticated, current_user=current_user)
 
 
 @app.route('/base')
@@ -252,7 +284,7 @@ def department():
         db.session.commit()
         return redirect(url_for('department'))
     return render_template('department.html', form=department_form, department=all_data,
-                           logged_in=current_user.is_authenticated,current_user=current_user)
+                           logged_in=current_user.is_authenticated, current_user=current_user)
 
 
 @app.route('/inventory', methods=['POST', 'GET'])
@@ -279,7 +311,7 @@ def inventory():
         db.session.commit()
         return redirect(url_for('inventory'))
     return render_template('inventory.html', form=inventory_form, inventory=all_records,
-                           logged_in=current_user.is_authenticated,current_user=current_user)
+                           logged_in=current_user.is_authenticated, current_user=current_user)
 
 
 @app.route('/store')
@@ -288,16 +320,17 @@ def store():
     all_records = InventoryTable.query.all()  # reading all data in table
     form = InventoryTable.query.all()
     return render_template('store.html', form=inventory_form, inventory=all_records,
-                           logged_in=current_user.is_authenticated,current_user=current_user)
+                           logged_in=current_user.is_authenticated, current_user=current_user)
 
 
 @app.route('/status')
 def status():
-    return render_template('status.html', logged_in=current_user.is_authenticated,current_user=current_user)
+    return render_template('status.html', logged_in=current_user.is_authenticated, current_user=current_user)
+
 
 @app.route('/about')
 def about():
-    return render_template('about.html', logged_in=current_user.is_authenticated,current_user=current_user)
+    return render_template('about.html', logged_in=current_user.is_authenticated, current_user=current_user)
 
 
 ##################################################################################
@@ -314,22 +347,30 @@ def add():
         db.session.add(add_deparment)
         db.session.commit()
         return redirect(url_for('home'))
-    return render_template("add.html",current_user=current_user)
+    return render_template("add.html", current_user=current_user)
 
 
 ##edit
 @app.route("/edit", methods=["GET", "POST"])
 def edit():
-    if request.method == "POST":
-        # UPDATE RECORD
-        inventory_id = request.form["product_id"]
-        item_to_update = InventoryTable.query.get(inventory_id)
-        item_to_update.rating = request.form["product_name"]
-        db.session.commit()
-        return redirect(url_for('home'))
-    inventory_id = request.args.get('product_id')
-    product_selected = InventoryTable.query.get(inventory_id)
-    return render_template("edit.html", product=product_selected,current_user=current_user)
+    form = ProductInventoryForm()
+    item_id = request.args.get('id')
+    item = InventoryTable.query.get(item_id)
+    if form.validate_on_submit():
+        item.categorie = form.product_categorie.data
+        item.product_name = form.product_name.data
+        item.serial_number =form.product_serial_number.data
+        item.barcode = form.product_barcode.data
+        item.quantity = form.product_quantity.data
+        item.received_date = form.received_date.data
+        item.product_details = form.product_details.data
+        item.product_status = form.product_status.data
+        item.product_brand = form.product_brand.data
+        item.product_condition = form.product_condition.data
+        item.product_department = form.product_department.data
+        item.product_address = form.product_address.data
+        return  redirect(url_for('inventory'))
+    return render_template("edit.html", item=item,form=form, current_user=current_user)
 
 
 @app.route('/main_store', methods=['GET', 'POST'])
@@ -346,42 +387,38 @@ def main_store():
         db.session.add(add_store)
         db.session.commit()
         return redirect(url_for('home'))
-    return render_template('index.html', form=all_data, logged_in=current_user.is_authenticated,current_user=current_user)
+    return render_template('index.html', form=all_data, logged_in=current_user.is_authenticated,
+                           current_user=current_user)
 
 
 ### delete
-@app.route("/delete")
+@app.route('/delete')
 def delete():
-    inventory_id = request.args.get('product_id')
+    item_id = request.args.get('id')
 
     # DELETE A RECORD BY ID
-    item_to_delete = InventoryTable.query.get(inventory_id)
-    db.session.delete(item_to_delete)
+    item = InventoryTable.query.get(item_id)
+    db.session.delete(item)
     db.session.commit()
     return redirect(url_for('inventory'))
 
 
+#main function for all crud opereations
 @app.route('/crud')
 def crud():
-    def delete():
-        product_id = request.args.get("id")
-        product = InventoryTable.query.get(product_id)
-        db.session.delete(product)
-        db.session.commit()
-        return redirect(url_for("inventory"))
-
+   pass
 
 @app.route('/logout')
 def logout():
     logout_user()
-    return redirect(url_for('login'))
+    return redirect(url_for('initial'))
 
 
 @app.route('/home')
 @login_required
 def secrets():
     print(current_user.username)
-    return render_template("index.html", name=current_user.username, logged_in=True,current_user=current_user)
+    return render_template("index.html", name=current_user.username, logged_in=True, current_user=current_user)
 
 
 if __name__ == "__main__":

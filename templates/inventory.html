@@ -74,8 +74,11 @@
         <td>{{ item.product_status }}</td>
         <td>{{ item.product_condition }}</td>
     <td>{{ item.received_date }}</td>
-    <td><a style="color: red" href="{{ url_for('delete')}}">Delete</a>|
-            <a href="{{ url_for('edit',product_id=item.product_id) }}">update</a></td>
+          <!--           If user id is 1 then they can see the add Post delete product see tabs -->
+        {% if current_user.id == 1 %}
+    <td><a style="color: red" href="{{ url_for('delete',id=item.id)}}">Delete</a>|
+            <a href="{{ url_for('edit',id=item.id) }}">update</a></td>
+    {% endif %}
     </tr>
    {% endfor %}
   </tbody>
